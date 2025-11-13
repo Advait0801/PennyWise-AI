@@ -41,3 +41,30 @@ class CategoryStatsResponse(BaseModel):
 	stats: List[CategoryStat]
 
 
+# User Authentication Schemas
+class UserCreate(BaseModel):
+	username: str = Field(..., min_length=3, max_length=50)
+	email: str = Field(..., pattern=r'^[^@]+@[^@]+\.[^@]+$')
+	password: str = Field(..., min_length=6)
+
+
+class UserLogin(BaseModel):
+	username: str
+	password: str
+
+
+class User(BaseModel):
+	id: int
+	username: str
+	email: str
+
+
+class Token(BaseModel):
+	access_token: str
+	token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+	username: Optional[str] = None
+
+

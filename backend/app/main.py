@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.controllers import classify, expenses, stats
+from app.controllers import classify, expenses, stats, auth
 from app.services.classifier import get_classifier
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="Smart Expense Classifier API", version="0.1.0")
 
@@ -24,9 +27,10 @@ async def startup_event():
 
 
 # Include routers
-app.include_router(classify.router)
-app.include_router(expenses.router)
-app.include_router(stats.router)
+app.include_router(auth.router)  # Authentication routes (register, login)
+app.include_router(classify.router)  # Public classification endpoint
+app.include_router(expenses.router)  # Protected expense routes
+app.include_router(stats.router)  # Protected stats routes
 
 
 @app.get("/health")
