@@ -73,13 +73,9 @@ struct AuthScreen: View {
                             .font(.system(size: dynamicFontSize(geometry, base: 60)))
                             .foregroundColor(.primaryMint)
                         
-                        Text("Smart Expense")
+                        Text("PennyWise AI")
                             .font(.system(size: dynamicFontSize(geometry, base: 32), weight: .bold))
                             .foregroundColor(.textPrimary)
-                        
-                        Text("Classifier")
-                            .font(.system(size: dynamicFontSize(geometry, base: 24), weight: .medium))
-                            .foregroundColor(.textSecondary)
                     }
                     .padding(.top, geometry.size.height * 0.1)
                     .padding(.bottom, geometry.size.height * 0.05)

@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Expense Model
 struct Expense: Identifiable, Codable {
-    let id: Int
+    let id: String
     let description: String
     let amount: Double
     let date: String?

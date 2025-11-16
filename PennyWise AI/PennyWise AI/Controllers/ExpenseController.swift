@@ -26,11 +26,8 @@ class ExpenseController: ObservableObject {
         
         do {
             let response = try await apiService.getExpenses(token: token)
-            self.expenses = response.expenses.sorted { expense1, expense2 in
-                // Sort by date (newest first)
-                let date1 = expense1.date ?? ""
-                let date2 = expense2.date ?? ""
-                return date1 > date2
+            self.expenses = response.expenses.sorted {
+                ($0.date ?? "1970-01-01") > ($1.date ?? "1970-01-01")
             }
             isLoading = false
         } catch {
