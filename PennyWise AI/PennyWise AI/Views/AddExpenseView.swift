@@ -19,7 +19,30 @@ struct AddExpenseView: View {
     @State private var useCustomDate = false
     @State private var classificationResult: ClassifyResponse?
     @State private var isClassifying = false
+    @State private var descriptionError: String? = nil
+    @State private var amountError: String? = nil
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    
+    // Validation computed properties
+    private var isDescriptionValid: Bool {
+        let trimmed = description.trimmingCharacters(in: .whitespaces)
+        return !trimmed.isEmpty && trimmed.count <= 500
+    }
+    
+    private var isAmountValid: Bool {
+        let trimmed = amount.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            return false
+        }
+        guard let amountValue = Double(trimmed) else {
+            return false
+        }
+        return amountValue > 0 && amountValue <= 1_000_000
+    }
+    
+    private var isValid: Bool {
+        isDescriptionValid && isAmountValid
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -33,11 +56,32 @@ struct AddExpenseView: View {
                             TextField("e.g., lunch at restaurant", text: $description)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: dynamicFontSize(geometry, base: 16)))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(descriptionError != nil ? Color.negativeRed : Color.clear, lineWidth: 2)
+                                )
                                 .onChange(of: description) { newValue in
+                                    validateDescription()
                                     if !newValue.isEmpty {
                                         classifyDescription()
                                     }
                                 }
+                            
+                            if let error = descriptionError {
+                                Text(error)
+                                    .font(.system(size: dynamicFontSize(geometry, base: 12)))
+                                    .foregroundColor(.negativeRed)
+                            }
+                            
+                            // Character count indicator
+                            if !description.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    Text("\(description.count)/500")
+                                        .font(.system(size: dynamicFontSize(geometry, base: 11)))
+                                        .foregroundColor(description.count > 500 ? .negativeRed : .textSecondary)
+                                }
+                            }
                             
                             // Classification Result
                             if let result = classificationResult {
@@ -89,6 +133,19 @@ struct AddExpenseView: View {
                                     .textFieldStyle(.roundedBorder)
                                     .keyboardType(.decimalPad)
                                     .font(.system(size: dynamicFontSize(geometry, base: 16)))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(amountError != nil ? Color.negativeRed : Color.clear, lineWidth: 2)
+                                    )
+                                    .onChange(of: amount) { _ in
+                                        validateAmount()
+                                    }
+                            }
+                            
+                            if let error = amountError {
+                                Text(error)
+                                    .font(.system(size: dynamicFontSize(geometry, base: 12)))
+                                    .foregroundColor(.negativeRed)
                             }
                         }
                         .padding(.horizontal, geometry.size.width * 0.05)
@@ -116,7 +173,12 @@ struct AddExpenseView: View {
                         
                         // Save Button
                         Button(action: {
-                            saveExpense()
+                            // Validate all fields before submitting
+                            validateAllFields()
+                            
+                            if isValid {
+                                saveExpense()
+                            }
                         }) {
                             HStack {
                                 if expenseController.isAddingExpense {
@@ -128,7 +190,7 @@ struct AddExpenseView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: dynamicButtonHeight(geometry))
-                            .background(isValid ? Color.primaryMint : Color.textSecondary)
+                            .background(isValid ? Color.primaryMint : Color.textSecondary.opacity(0.5))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                         }
@@ -153,9 +215,45 @@ struct AddExpenseView: View {
         }
     }
     
-    // MARK: - Validation
-    private var isValid: Bool {
-        !description.isEmpty && !amount.isEmpty && Double(amount) != nil && Double(amount)! > 0
+    // MARK: - Validation Helpers
+    private func validateDescription() {
+        let trimmed = description.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            descriptionError = nil // Don't show error while typing
+            return
+        }
+        
+        if trimmed.count > 500 {
+            descriptionError = "Description must be less than 500 characters"
+        } else {
+            descriptionError = nil
+        }
+    }
+    
+    private func validateAmount() {
+        let trimmed = amount.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            amountError = nil // Don't show error while typing
+            return
+        }
+        
+        guard let amountValue = Double(trimmed) else {
+            amountError = "Please enter a valid number"
+            return
+        }
+        
+        if amountValue <= 0 {
+            amountError = "Amount must be greater than 0"
+        } else if amountValue > 1_000_000 {
+            amountError = "Amount must be less than $1,000,000"
+        } else {
+            amountError = nil
+        }
+    }
+    
+    private func validateAllFields() {
+        validateDescription()
+        validateAmount()
     }
     
     // MARK: - Actions
@@ -173,13 +271,17 @@ struct AddExpenseView: View {
     }
     
     private func saveExpense() {
-        guard let amountValue = Double(amount), amountValue > 0 else { return }
+        let trimmedDescription = description.trimmingCharacters(in: .whitespaces)
+        let trimmedAmount = amount.trimmingCharacters(in: .whitespaces)
+        
+        guard let amountValue = Double(trimmedAmount), amountValue > 0 else { return }
+        guard !trimmedDescription.isEmpty else { return }
         
         let dateString = useCustomDate ? formatDate(selectedDate) : nil
         
         Task {
             await expenseController.addExpense(
-                description: description,
+                description: trimmedDescription,
                 amount: amountValue,
                 date: dateString,
                 token: token
