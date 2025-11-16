@@ -1,17 +1,20 @@
 from datetime import date
 from fastapi import APIRouter, HTTPException, Depends
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.models.schemas import ExpenseCreate, Expense, ExpensesResponse, User
-from app.services.storage import store
+from app.services.storage import create_expense, get_expenses_by_user
 from app.services.classifier import get_classifier
 from app.dependencies import get_current_user
+from app.database import get_database
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 
 @router.post("", response_model=Expense, status_code=201)
-async def create_expense(
+async def create_expense_endpoint(
 	payload: ExpenseCreate,
-	current_user: User = Depends(get_current_user)
+	current_user: User = Depends(get_current_user),
+	db: AsyncIOMotorDatabase = Depends(get_database)
 ):
 	"""
 	Create a new expense. The description will be automatically classified.
@@ -35,8 +38,8 @@ async def create_expense(
 			date=expense_date
 		)
 		
-		# Store the expense for the current user
-		expense = store.add(current_user.id, expense_payload, category, probability)
+		# Store the expense in the database for the current user
+		expense = await create_expense(db, current_user.id, expense_payload, category, probability)
 		
 		return expense
 	except Exception as e:
@@ -44,7 +47,10 @@ async def create_expense(
 
 
 @router.get("", response_model=ExpensesResponse)
-async def list_expenses(current_user: User = Depends(get_current_user)):
+async def list_expenses_endpoint(
+	current_user: User = Depends(get_current_user),
+	db: AsyncIOMotorDatabase = Depends(get_database)
+):
 	"""
 	Get all expenses for the current user.
 	Requires authentication.
@@ -52,7 +58,7 @@ async def list_expenses(current_user: User = Depends(get_current_user)):
 	Returns a list of all stored expenses for the authenticated user.
 	"""
 	try:
-		expenses = store.list(current_user.id)
+		expenses = await get_expenses_by_user(db, current_user.id)
 		return ExpensesResponse(expenses=expenses)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=f"Error retrieving expenses: {str(e)}")

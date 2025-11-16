@@ -1,13 +1,18 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.services.auth import decode_access_token
-from app.services.user_storage import user_store
+from app.services.user_storage import get_user_by_username
 from app.models.schemas import User
+from app.database import get_database
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+async def get_current_user(
+	token: str = Depends(oauth2_scheme),
+	db: AsyncIOMotorDatabase = Depends(get_database)
+) -> User:
 	"""
 	Get the current authenticated user from JWT token.
 	
@@ -27,9 +32,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 			headers={"WWW-Authenticate": "Bearer"},
 		)
 	
-	# Get user
-	user = user_store.get_user_by_username(token_data.username)
-	if user is None:
+	# Get user from database
+	user_dict = await get_user_by_username(db, token_data.username)
+	if user_dict is None:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="User not found",
@@ -37,8 +42,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 		)
 	
 	return User(
-		id=user["id"],
-		username=user["username"],
-		email=user["email"]
+		id=user_dict["id"],
+		username=user_dict["username"],
+		email=user_dict["email"]
 	)
 

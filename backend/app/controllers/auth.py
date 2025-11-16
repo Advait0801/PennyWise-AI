@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.models.schemas import UserCreate, User, UserLogin, Token
-from app.services.user_storage import user_store
+from app.services.user_storage import create_user, get_user_by_username
 from app.services.auth import verify_password, create_access_token
+from app.database import get_database
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -10,14 +12,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
-async def register(user_create: UserCreate):
+async def register(user_create: UserCreate, db: AsyncIOMotorDatabase = Depends(get_database)):
 	"""
 	Register a new user.
 	
 	Returns the created user (without password).
 	"""
 	try:
-		user = user_store.create_user(user_create)
+		user = await create_user(db, user_create)
 		return user
 	except ValueError as e:
 		raise HTTPException(
@@ -27,14 +29,14 @@ async def register(user_create: UserCreate):
 
 
 @router.post("/login", response_model=Token)
-async def login(login_data: UserLogin):
+async def login(login_data: UserLogin, db: AsyncIOMotorDatabase = Depends(get_database)):
 	"""
 	Login and get access token.
 	
 	Accepts JSON body with username and password.
 	"""
-	# Get user
-	user_dict = user_store.get_user_by_username(login_data.username)
+	# Get user from database
+	user_dict = await get_user_by_username(db, login_data.username)
 	if not user_dict:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,

@@ -19,7 +19,7 @@ class ExpenseCreate(BaseModel):
 
 
 class Expense(BaseModel):
-	id: int
+	id: str  # MongoDB ObjectId as string
 	description: str
 	amount: float
 	date: Optional[str] = None
@@ -54,7 +54,7 @@ class UserLogin(BaseModel):
 
 
 class User(BaseModel):
-	id: int
+	id: str  # MongoDB ObjectId as string
 	username: str
 	email: str
 
