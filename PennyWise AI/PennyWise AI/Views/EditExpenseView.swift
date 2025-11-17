@@ -1,5 +1,5 @@
 //
-//  AddExpenseView.swift
+//  EditExpenseView.swift
 //  PennyWise AI
 //
 //  Created by Advait Naik on 11/15/25.
@@ -7,23 +7,48 @@
 
 import SwiftUI
 
-// MARK: - Add Expense View
-struct AddExpenseView: View {
+// MARK: - Edit Expense View
+struct EditExpenseView: View {
     @ObservedObject var expenseController: ExpenseController
     @Environment(\.dismiss) var dismiss
+    let expense: Expense
     let token: String
     
-    @State private var description = ""
-    @State private var amount = ""
-    @State private var selectedDate = Date()
-    @State private var useCustomDate = false
+    @State private var description: String
+    @State private var amount: String
+    @State private var selectedDate: Date
+    @State private var useCustomDate: Bool
     @State private var classificationResult: ClassifyResponse?
     @State private var isClassifying = false
     @State private var descriptionError: String? = nil
     @State private var amountError: String? = nil
     @State private var showValidationAlert = false
     @State private var validationAlertMessage = ""
+    @State private var showDeleteConfirmation = false
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    
+    init(expense: Expense, expenseController: ExpenseController, token: String) {
+        self.expense = expense
+        self.expenseController = expenseController
+        self.token = token
+        
+        // Initialize state from expense
+        _description = State(initialValue: expense.description)
+        
+        let expenseAmount = expense.amount
+        _amount = State(initialValue: String(format: "%.2f", expenseAmount))
+        
+        // Parse date from expense
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        if let dateString = expense.date, let date = formatter.date(from: dateString) {
+            _selectedDate = State(initialValue: date)
+            _useCustomDate = State(initialValue: true)
+        } else {
+            _selectedDate = State(initialValue: Date())
+            _useCustomDate = State(initialValue: false)
+        }
+    }
     
     // Validation computed properties
     private var isDescriptionValid: Bool {
@@ -176,7 +201,6 @@ struct AddExpenseView: View {
                         // Save Button
                         Button(action: {
                             hideKeyboard()
-                            // Validate all fields before submitting
                             validateAllFields()
                             
                             if isValid {
@@ -192,7 +216,7 @@ struct AddExpenseView: View {
                                 showValidationAlert = true
                             }
                         }) {
-                            Text("Save Expense")
+                            Text("Save Changes")
                                 .font(.system(size: dynamicFontSize(geometry, base: 18), weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: dynamicButtonHeight(geometry))
@@ -200,14 +224,29 @@ struct AddExpenseView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                         }
-                        .disabled(!isValid || expenseController.isAddingExpense)
+                        .disabled(!isValid)
                         .padding(.horizontal, geometry.size.width * 0.05)
                         .padding(.top, geometry.size.height * 0.02)
+                        
+                        // Delete Button
+                        Button(action: {
+                            showDeleteConfirmation = true
+                        }) {
+                            Text("Delete Expense")
+                                .font(.system(size: dynamicFontSize(geometry, base: 18), weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: dynamicButtonHeight(geometry))
+                                .background(Color.negativeRed)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal, geometry.size.width * 0.05)
+                        .padding(.top, geometry.size.height * 0.01)
                     }
                     .padding(.bottom, geometry.size.height * 0.05)
                 }
                 .background(Color.backgroundSoft)
-                .navigationTitle("Add Expense")
+                .navigationTitle("Edit Expense")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -224,6 +263,20 @@ struct AddExpenseView: View {
                         dismissButton: .default(Text("OK"))
                     )
                 }
+                .alert("Delete Expense", isPresented: $showDeleteConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Delete", role: .destructive) {
+                        deleteExpense()
+                    }
+                } message: {
+                    Text("Are you sure you want to delete this expense? This action cannot be undone.")
+                }
+            }
+        }
+        .onAppear {
+            // Classify on appear
+            if !description.isEmpty {
+                classifyDescription()
             }
         }
     }
@@ -232,7 +285,7 @@ struct AddExpenseView: View {
     private func validateDescription() {
         let trimmed = description.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty {
-            descriptionError = nil // Don't show error while typing
+            descriptionError = nil
             return
         }
         
@@ -246,7 +299,7 @@ struct AddExpenseView: View {
     private func validateAmount() {
         let trimmed = amount.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty {
-            amountError = nil // Don't show error while typing
+            amountError = nil
             return
         }
         
@@ -293,12 +346,25 @@ struct AddExpenseView: View {
         let dateString = useCustomDate ? formatDate(selectedDate) : nil
         
         Task {
-            await expenseController.addExpense(
+            await expenseController.updateExpense(
+                expenseId: expense.id,
                 description: trimmedDescription,
                 amount: amountValue,
                 date: dateString,
                 token: token
             )
+            
+            await MainActor.run {
+                if expenseController.errorMessage == nil {
+                    dismiss()
+                }
+            }
+        }
+    }
+    
+    private func deleteExpense() {
+        Task {
+            await expenseController.deleteExpense(expenseId: expense.id, token: token)
             
             await MainActor.run {
                 if expenseController.errorMessage == nil {
@@ -332,3 +398,4 @@ struct AddExpenseView: View {
         return baseHeight * max(scaleFactor, 0.8)
     }
 }
+

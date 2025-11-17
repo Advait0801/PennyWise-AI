@@ -14,6 +14,8 @@ struct MainScreen: View {
     @ObservedObject var expenseController: ExpenseController
     @State private var selectedTab = 0
     @State private var showAddExpense = false
+    @State private var showEditExpense = false
+    @State private var selectedExpense: Expense? = nil
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     
     var body: some View {
@@ -42,6 +44,15 @@ struct MainScreen: View {
                     expenseController: expenseController,
                     token: authController.accessToken ?? ""
                 )
+            }
+            .sheet(isPresented: $showEditExpense) {
+                if let expense = selectedExpense {
+                    EditExpenseView(
+                        expense: expense,
+                        expenseController: expenseController,
+                        token: authController.accessToken ?? ""
+                    )
+                }
             }
             .task {
                 if let token = authController.accessToken {
@@ -106,11 +117,7 @@ struct MainScreen: View {
     // MARK: - Expenses List View
     private func expensesListView(geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
-            if expenseController.isLoading && expenseController.expenses.isEmpty {
-                Spacer()
-                ProgressView()
-                Spacer()
-            } else if expenseController.expenses.isEmpty {
+            if expenseController.expenses.isEmpty && !expenseController.isLoading {
                 Spacer()
                 VStack(spacing: 16) {
                     Image(systemName: "tray")
@@ -128,7 +135,20 @@ struct MainScreen: View {
                 ScrollView {
                     LazyVStack(spacing: dynamicSpacing(geometry)) {
                         ForEach(expenseController.expenses) { expense in
-                            ExpenseRowView(expense: expense, geometry: geometry)
+                            ExpenseRowView(
+                                expense: expense,
+                                geometry: geometry,
+                                onEdit: {
+                                    selectedExpense = expense
+                                    showEditExpense = true
+                                },
+                                onDelete: {
+                                    Task {
+                                        await expenseController.deleteExpense(expenseId: expense.id, token: authController.accessToken ?? "")
+                                        await expenseController.loadCategoryStats(token: authController.accessToken ?? "")
+                                    }
+                                }
+                            )
                         }
                     }
                     .padding(.horizontal, geometry.size.width * 0.05)
@@ -246,6 +266,8 @@ struct MainScreen: View {
 struct ExpenseRowView: View {
     let expense: Expense
     let geometry: GeometryProxy
+    let onEdit: () -> Void
+    let onDelete: () -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -278,12 +300,24 @@ struct ExpenseRowView: View {
                     .font(.system(size: dynamicFontSize(geometry, base: 10)))
                     .foregroundColor(.textSecondary)
             }
+            
+            // Edit Button
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+                    .font(.system(size: dynamicFontSize(geometry, base: 16)))
+                    .foregroundColor(.primaryMint)
+            }
         }
         .padding(.vertical, dynamicSpacing(geometry))
         .padding(.horizontal, geometry.size.width * 0.03)
         .background(Color.backgroundCard)
         .cornerRadius(12)
         .shadow(color: Color.textPrimary.opacity(0.08), radius: 4, x: 0, y: 2)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
     
     private func dynamicFontSize(_ geometry: GeometryProxy, base: CGFloat) -> CGFloat {

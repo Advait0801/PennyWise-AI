@@ -19,6 +19,8 @@ struct AuthScreen: View {
     @State private var emailError: String? = nil
     @State private var passwordError: String? = nil
     @State private var confirmPasswordError: String? = nil
+    @State private var showValidationAlert = false
+    @State private var validationAlertMessage = ""
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     
     // Validation computed properties
@@ -214,6 +216,7 @@ struct AuthScreen: View {
                     
                     // Submit Button
                     Button(action: {
+                        hideKeyboard()
                         // Validate all fields before submitting
                         validateAllFields()
                         
@@ -229,21 +232,29 @@ struct AuthScreen: View {
                                     )
                                 }
                             }
+                        } else {
+                            // Show validation alert
+                            if !isUsernameValid {
+                                validationAlertMessage = "Username must be at least 3 characters"
+                            } else if !isPasswordValid {
+                                validationAlertMessage = "Password must be at least 6 characters"
+                            } else if !isLoginMode && !isEmailValid {
+                                validationAlertMessage = "Please enter a valid email address"
+                            } else if !isLoginMode && !isConfirmPasswordValid {
+                                validationAlertMessage = "Passwords do not match"
+                            } else {
+                                validationAlertMessage = "Please fill all fields correctly"
+                            }
+                            showValidationAlert = true
                         }
                     }) {
-                        HStack {
-                            if authController.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            }
-                            Text(isLoginMode ? "Login" : "Register")
-                                .font(.system(size: dynamicFontSize(geometry, base: 18), weight: .semibold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: dynamicButtonHeight(geometry))
-                        .background(isFormValid ? Color.primaryMint : Color.textSecondary.opacity(0.5))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                        Text(isLoginMode ? "Login" : "Register")
+                            .font(.system(size: dynamicFontSize(geometry, base: 18), weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: dynamicButtonHeight(geometry))
+                            .background(isFormValid ? Color.primaryMint : Color.textSecondary.opacity(0.5))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
                     }
                     .disabled(authController.isLoading || !isFormValid)
                     .padding(.horizontal, geometry.size.width * 0.1)
@@ -252,6 +263,13 @@ struct AuthScreen: View {
                 .frame(minHeight: geometry.size.height)
             }
             .background(Color.backgroundSoft)
+            .alert(isPresented: $showValidationAlert) {
+                Alert(
+                    title: Text("Validation Error"),
+                    message: Text(validationAlertMessage),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
     }
     

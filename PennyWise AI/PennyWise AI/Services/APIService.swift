@@ -90,6 +90,14 @@ class APIService {
         return try await request<ExpensesResponse>(endpoint: "/expenses", method: "GET", token: token)
     }
     
+    func updateExpense(_ expense: ExpenseCreate, expenseId: String, token: String) async throws -> Expense {
+        return try await request<Expense>(endpoint: "/expenses/\(expenseId)", method: "PUT", body: expense, token: token)
+    }
+    
+    func deleteExpense(expenseId: String, token: String) async throws {
+        let _: EmptyResponse = try await request<EmptyResponse>(endpoint: "/expenses/\(expenseId)", method: "DELETE", token: token)
+    }
+    
     // MARK: - Statistics
     func getCategoryStats(token: String) async throws -> CategoryStatsResponse {
         return try await request<CategoryStatsResponse>(endpoint: "/stats/category", method: "GET", token: token)
@@ -130,4 +138,8 @@ struct HealthResponse: Codable {
 
 struct ErrorResponse: Codable {
     let detail: String
+}
+
+struct EmptyResponse: Codable {
+    // Empty response for DELETE requests
 }

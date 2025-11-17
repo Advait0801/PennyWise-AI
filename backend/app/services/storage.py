@@ -125,3 +125,99 @@ async def get_expense_by_id(
 		)
 	except Exception:
 		return None
+
+
+async def update_expense(
+	db: AsyncIOMotorDatabase,
+	user_id: str,
+	expense_id: str,
+	payload: ExpenseCreate,
+	category: str,
+	probability: float
+) -> Optional[Expense]:
+	"""
+	Update an existing expense for a user.
+	
+	Args:
+		db: MongoDB database instance
+		user_id: ID of the user (MongoDB ObjectId as string)
+		expense_id: ID of the expense to update (MongoDB ObjectId as string)
+		payload: Updated expense data
+		category: Updated category (re-classified)
+		probability: Updated probability
+	
+	Returns:
+		Updated Expense if found and updated, None otherwise
+	"""
+	try:
+		# Parse date string to date object
+		expense_date = date.today()
+		if payload.date:
+			try:
+				expense_date = datetime.strptime(payload.date, "%Y-%m-%d").date()
+			except ValueError:
+				expense_date = date.today()
+		
+		# Update expense document
+		update_doc = {
+			"description": payload.description,
+			"amount": payload.amount,
+			"date": expense_date.isoformat(),
+			"category": category,
+			"probability": probability,
+			"updated_at": datetime.utcnow()
+		}
+		
+		result = await db.expenses.update_one(
+			{"_id": ObjectId(expense_id), "user_id": ObjectId(user_id)},
+			{"$set": update_doc}
+		)
+		
+		if result.matched_count == 0:
+			return None
+		
+		# Fetch and return updated expense
+		expense_doc = await db.expenses.find_one({
+			"_id": ObjectId(expense_id),
+			"user_id": ObjectId(user_id)
+		})
+		
+		if not expense_doc:
+			return None
+		
+		return Expense(
+			id=str(expense_doc["_id"]),
+			description=expense_doc["description"],
+			amount=expense_doc["amount"],
+			date=expense_doc.get("date"),
+			category=expense_doc["category"],
+			probability=expense_doc["probability"]
+		)
+	except Exception:
+		return None
+
+
+async def delete_expense(
+	db: AsyncIOMotorDatabase,
+	user_id: str,
+	expense_id: str
+) -> bool:
+	"""
+	Delete an expense for a user.
+	
+	Args:
+		db: MongoDB database instance
+		user_id: ID of the user (MongoDB ObjectId as string)
+		expense_id: ID of the expense to delete (MongoDB ObjectId as string)
+	
+	Returns:
+		True if expense was found and deleted, False otherwise
+	"""
+	try:
+		result = await db.expenses.delete_one({
+			"_id": ObjectId(expense_id),
+			"user_id": ObjectId(user_id)
+		})
+		return result.deleted_count > 0
+	except Exception:
+		return False

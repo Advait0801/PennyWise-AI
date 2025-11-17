@@ -85,6 +85,44 @@ class ExpenseController: ObservableObject {
         expenses.reduce(0) { $0 + $1.amount }
     }
     
+    // MARK: - Update Expense
+    func updateExpense(expenseId: String, description: String, amount: Double, date: String?, token: String) async {
+        errorMessage = nil
+        
+        do {
+            let expenseCreate = ExpenseCreate(description: description, amount: amount, date: date)
+            let updatedExpense = try await apiService.updateExpense(expenseCreate, expenseId: expenseId, token: token)
+            
+            // Update in local list
+            if let index = expenses.firstIndex(where: { $0.id == expenseId }) {
+                expenses[index] = updatedExpense
+            }
+            
+            // Reload to ensure sync
+            await loadExpenses(token: token)
+            await loadCategoryStats(token: token)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    // MARK: - Delete Expense
+    func deleteExpense(expenseId: String, token: String) async {
+        errorMessage = nil
+        
+        do {
+            try await apiService.deleteExpense(expenseId: expenseId, token: token)
+            
+            // Remove from local list
+            expenses.removeAll { $0.id == expenseId }
+            
+            // Reload stats
+            await loadCategoryStats(token: token)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
     // MARK: - Expenses by Category
     func expenses(for category: String) -> [Expense] {
         expenses.filter { $0.category == category }

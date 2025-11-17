@@ -32,6 +32,11 @@ extension View {
     func screenHeight(_ percentage: CGFloat) -> CGFloat {
         UIScreen.main.bounds.height * percentage
     }
+    
+    // Dismiss keyboard
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
 // MARK: - Size Class Helper
