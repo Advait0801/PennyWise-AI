@@ -154,7 +154,7 @@ logs/
 Thumbs.db
 
 # Cursor IDE
-.cursorrules
+.cursorrules*
 
 # Xcode user data - do not ignore the .xcodeproj folder itself!
 *.xcuserdatad/

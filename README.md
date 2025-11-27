@@ -75,50 +75,6 @@
 └─────────────┘              └──────────────┘
 ```
 
-### Frontend Architecture (iOS - MVC Pattern)
-
-```
-PennyWise AI/
-├── Models/              # Data models (Expense, Category, Auth)
-├── Views/               # SwiftUI views (declarative, render-only)
-│   ├── AuthScreen.swift
-│   ├── MainScreen.swift
-│   ├── AddExpenseView.swift
-│   └── EditExpenseView.swift
-├── Controllers/         # Business logic & state management
-│   ├── AuthController.swift
-│   └── ExpenseController.swift
-├── Services/            # API communication layer
-│   └── APIService.swift
-└── Utilities/           # Helper extensions & utilities
-    ├── Colors.swift
-    └── ViewExtensions.swift
-```
-
-### Backend Architecture (FastAPI - MVC-ish Pattern)
-
-```
-backend/
-├── app/
-│   ├── main.py              # FastAPI app & CORS configuration
-│   ├── database.py          # MongoDB connection management
-│   ├── dependencies.py      # Dependency injection (auth, DB)
-│   ├── controllers/         # API endpoints (routers)
-│   │   ├── auth.py          # Authentication routes
-│   │   ├── classify.py      # Classification endpoint
-│   │   ├── expenses.py      # CRUD operations
-│   │   └── stats.py         # Statistics aggregation
-│   ├── models/              # Pydantic schemas
-│   │   └── schemas.py       # Request/Response models
-│   └── services/            # Business logic layer
-│       ├── auth.py          # JWT & password hashing
-│       ├── classifier.py    # ML model (TF-IDF + Logistic Regression)
-│       ├── storage.py       # Expense database operations
-│       ├── user_storage.py  # User database operations
-│       └── stats.py         # Statistics calculation
-└── requirements.txt
-```
-
 ---
 
 ## 🛠️ Tech Stack
